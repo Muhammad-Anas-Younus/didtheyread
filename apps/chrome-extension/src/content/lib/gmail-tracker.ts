@@ -2,6 +2,7 @@ export class GmailTracker {
   private isEnabled = true;
   private trackingDomain = "https://your-tracking-domain.com";
   private observer: MutationObserver | null = null;
+  private trackingId: string | null = null;
 
   async init() {
     console.log("Gmail Tracker initializing...");
@@ -86,13 +87,13 @@ export class GmailTracker {
   }
 
   private setupComposeWindow(composeWindow: HTMLElement) {
-    console.log("Setting up compose window for tracking");
-
     const sendButtons = composeWindow.querySelectorAll(
       '[aria-label="Send ‪(Ctrl-Enter)‬"]'
     );
 
-    console.log(sendButtons, "sendButons");
+    this.trackingId = this.generateTrackingId();
+
+    this.injectTrackingPixel(composeWindow);
 
     sendButtons.forEach((button) => {
       if (!button.hasAttribute("data-tracker-setup")) {
@@ -106,29 +107,6 @@ export class GmailTracker {
         );
       }
     });
-  }
-
-  private interceptSendActions() {
-    // Global click listener for send buttons
-    document.addEventListener(
-      "click",
-      (event) => {
-        const target = event.target as HTMLElement;
-        const sendButton = target.closest(
-          '[data-tooltip="Send"], [aria-label*="Send"]'
-        );
-
-        if (sendButton && !sendButton.hasAttribute("data-tracker-processed")) {
-          const composeWindow = sendButton.closest(
-            '[role="dialog"]'
-          ) as HTMLElement;
-          if (composeWindow && this.isComposeWindow(composeWindow)) {
-            this.handleSendButtonClick(event, composeWindow);
-          }
-        }
-      },
-      { capture: true }
-    );
   }
 
   private handleSendButtonClick(event: Event, composeWindow: HTMLElement) {
@@ -146,8 +124,7 @@ export class GmailTracker {
       // Extract email data
       const emailData = this.extractEmailData(composeWindow);
 
-      // Inject tracking pixel
-      //   this.injectTrackingPixel(composeWindow, emailData);
+      this.storeTrackingData(this.trackingId!, emailData);
 
       // Continue with send after a short delay
       //   setTimeout(() => {
@@ -161,68 +138,74 @@ export class GmailTracker {
   }
 
   private extractEmailData(composeWindow: HTMLElement) {
-    // Extract recipient
-    const toFeildTable = composeWindow.querySelectorAll(`tbody`);
-    if (toFeildTable) {
-      console.log(toFeildTable, "toFieldTable");
+    const toField = composeWindow.querySelectorAll(
+      `span[email]:not([email=""])`
+    ) as NodeListOf<HTMLSpanElement>;
+    console.log(toField, "toField");
+    let recipients: string[] = [];
+    if (toField.length > 0) {
+      toField.forEach((span) => {
+        if (
+          span.getAttribute("email") &&
+          !recipients.includes(span.getAttribute("email")!)
+        ) {
+          recipients.push(span.getAttribute("email")!);
+        }
+      });
     }
-    const toField = composeWindow.querySelector('id=":zb"') as HTMLInputElement;
-    let recipients = "";
-
-    if (toField) {
-      recipients = toField.value || toField.textContent || "";
-    } else {
-      // Try alternative selectors for recipient
-      const toContainer = composeWindow.querySelector(
-        '[data-tooltip*="recipients"]'
-      );
-      if (toContainer) {
-        recipients = toContainer.textContent || "";
-      }
-    }
-
     // Extract subject
     const subjectField = composeWindow.querySelector(
-      '[name="subject"], [aria-label*="Subject"]'
+      'input[name="subjectbox"]'
     ) as HTMLInputElement;
+
     const subject = subjectField?.value || subjectField?.textContent || "";
 
+    console.log(subject, "subject");
+
     // Extract content area for validation
+    const contentArea = composeWindow.querySelector(
+      '[contenteditable="true"], [role="textbox"], [aria-multiline="true"]'
+    ) as HTMLElement;
+
+    console.log(contentArea.innerHTML, "Content Area HTML");
+
+    return {
+      recipients: recipients,
+      subject: subject,
+    };
+  }
+
+  private injectTrackingPixel(composeWindow: HTMLElement) {
     const contentArea = composeWindow.querySelector(
       '[contenteditable="true"], [role="textbox"]'
     ) as HTMLElement;
 
-    return {
-      testing: "working?",
-      //   recipients: recipients.trim(),
-      //   subject: subject.trim(),
-      //   hasContent: (contentArea?.textContent?.trim().length || 0) > 0,
-      //   timestamp: Date.now(),
-    };
+    if (!contentArea) {
+      console.warn("Could not find email content area for pixel injection");
+      return;
+    }
+
+    // Generate tracking ID
+    const trackingId = this.trackingId!;
+
+    // Create tracking pixel
+    const trackingPixel = this.createTrackingPixel(trackingId);
+
+    // Inject pixel into email content
+    contentArea.appendChild(trackingPixel);
+
+    console.log("Tracking pixel injected successfully:", trackingId);
   }
 
-  //   private injectTrackingPixel(composeWindow: HTMLElement, emailData: any) {
-  //     const contentArea = composeWindow.querySelector('[contenteditable="true"], [role="textbox"]') as HTMLElement;
+  private storeTrackingData(trackingId: string, emailData: any) {
+    const trackingInfo = {
+      trackingId: trackingId,
+      recipients: emailData.recipients,
+      subject: emailData.subject,
+    };
 
-  //     if (!contentArea) {
-  //       console.warn('Could not find email content area for pixel injection');
-  //       return;
-  //     }
-
-  //     // Generate tracking ID
-  //     const trackingId = this.generateTrackingId();
-
-  //     // Create tracking pixel
-  //     const trackingPixel = this.createTrackingPixel(trackingId);
-
-  //     // Inject pixel into email content
-  //     contentArea.appendChild(trackingPixel);
-
-  //     // Store tracking data
-  //     this.storeTrackingData(trackingId, emailData);
-
-  //     console.log('Tracking pixel injected successfully:', trackingId);
-  //   }
+    console.log("Storing tracking data:", trackingInfo);
+  }
 
   private createTrackingPixel(trackingId: string): HTMLElement {
     const img = document.createElement("img");
