@@ -14,7 +14,23 @@ export default defineManifest({
     },
     default_popup: "src/popup/index.html",
   },
-  permissions: ["sidePanel", "contentSettings", "scripting", "background"],
+  permissions: [
+    "sidePanel",
+    "contentSettings",
+    "scripting",
+    "background",
+    "identity",
+    "tabs",
+    "storage",
+  ],
+  oauth2: {
+    client_id: process.env.VITE_GOOGLE_CLIENT_ID || "",
+    scopes: ["openid", "email", "profile"],
+  },
+  background: {
+    service_worker: "src/background.ts",
+    type: "module",
+  },
   content_scripts: [
     {
       js: ["src/content/main.tsx"],

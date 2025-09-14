@@ -1,6 +1,6 @@
 import { GmailTracker } from "./lib/gmail-tracker";
 
-console.log("[CRXJS] Hello world from content script!");
+("[CRXJS] Hello world from content script!");
 
 // const container = document.createElement("div");
 // container.id = "crxjs-app";
