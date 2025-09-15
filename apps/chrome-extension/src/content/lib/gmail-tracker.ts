@@ -1,6 +1,8 @@
+import { supabase } from "@/lib/supabase";
+
 export class GmailTracker {
   private isEnabled = true;
-  private trackingDomain = "https://your-tracking-domain.com";
+  private trackingDomain = import.meta.env.VITE_TRACKING_DOMAIN || "";
   private observer: MutationObserver | null = null;
   private trackingId: string | null = null;
 
@@ -109,16 +111,21 @@ export class GmailTracker {
     });
   }
 
-  private handleSendButtonClick(event: Event, composeWindow: HTMLElement) {
+  private async handleSendButtonClick(
+    event: Event,
+    composeWindow: HTMLElement
+  ) {
     if (!this.isEnabled) return;
 
-    console.log("Intercepting email send...");
+    const user = await supabase.auth.getUser();
 
-    // Prevent the send temporarily
-    event.preventDefault();
-    event.stopPropagation();
+    // console.log("Intercepting email send...");
 
-    console.log("The email send was intercepted successfully!!!!");
+    // // Prevent the send temporarily
+    // event.preventDefault();
+    // event.stopPropagation();
+
+    // console.log("The email send was intercepted successfully!!!!");
 
     try {
       // Extract email data
@@ -197,19 +204,62 @@ export class GmailTracker {
     console.log("Tracking pixel injected successfully:", trackingId);
   }
 
-  private storeTrackingData(trackingId: string, emailData: any) {
-    const trackingInfo = {
-      trackingId: trackingId,
-      recipients: emailData.recipients,
-      subject: emailData.subject,
-    };
+  private async storeTrackingData(trackingId: string, emailData: any) {
+    console.log("🔵 Starting storeTrackingData...", { trackingId, emailData });
 
-    console.log("Storing tracking data:", trackingInfo);
+    try {
+      // Send data to background script for storage
+      const response = await chrome.runtime.sendMessage({
+        type: "STORE_EMAIL_DATA",
+        data: {
+          trackingId: trackingId,
+          recipients: emailData.recipients,
+          subject: emailData.subject,
+        },
+      });
+
+      if (response.success) {
+        console.log(
+          "🟢 Email stored successfully via background:",
+          response.data
+        );
+      } else {
+        console.error("🔴 Failed to store email:", response.error);
+
+        // Try to check if user is logged in
+        const userResponse = await chrome.runtime.sendMessage({
+          type: "GET_USER_SESSION",
+        });
+
+        if (!userResponse.success) {
+          console.error(
+            "🔴 User not authenticated. Please log in via the extension popup."
+          );
+          // Optionally show a notification or badge
+          this.showAuthenticationWarning();
+        }
+      }
+    } catch (error) {
+      console.error("🔴 Error communicating with background script:", error);
+    }
+  }
+
+  private showAuthenticationWarning() {
+    // Show a visual indicator that authentication is required
+    console.warn(
+      "⚠️ Please log in via the extension popup to enable email tracking"
+    );
+
+    // Optional: Set extension badge to indicate auth is needed
+    chrome.runtime.sendMessage({
+      type: "SET_BADGE_TEXT",
+      text: "!",
+    });
   }
 
   private createTrackingPixel(trackingId: string): HTMLElement {
     const img = document.createElement("img");
-    img.src = `${this.trackingDomain}/pixel/${trackingId}.png`;
+    img.src = `${this.trackingDomain}/api/emails/pixel/${trackingId}`;
     img.width = 1;
     img.height = 1;
     img.alt = "";

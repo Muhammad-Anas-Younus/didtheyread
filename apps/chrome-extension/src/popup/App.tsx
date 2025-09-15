@@ -29,6 +29,15 @@ export default function App() {
         } else {
           console.log("Authentication successful:", data);
           setUser(data.user);
+          
+          // Store session in Chrome storage for content script access
+          if (data.session) {
+            await chrome.storage.local.set({
+              'supabase_session': data.session
+            });
+            console.log("Session stored in Chrome storage");
+          }
+          
           alert("Successfully logged in!");
         }
       } else {

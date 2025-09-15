@@ -1,10 +1,109 @@
+import { supabase } from "./lib/supabase";
+
 // Handle authentication in background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "GOOGLE_AUTH") {
     handleGoogleAuth(sendResponse);
     return true; // Indicates we will respond asynchronously
   }
+
+  if (message.type === "STORE_EMAIL_DATA") {
+    handleStoreEmailData(message.data, sendResponse);
+    return true; // Indicates we will respond asynchronously
+  }
+
+  if (message.type === "GET_USER_SESSION") {
+    handleGetUserSession(sendResponse);
+    return true; // Indicates we will respond asynchronously
+  }
+
+  if (message.type === "SET_BADGE_TEXT") {
+    chrome.action.setBadgeText({ text: message.text });
+    chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
+    sendResponse({ success: true });
+  }
 });
+
+async function handleStoreEmailData(
+  emailData: any,
+  sendResponse: (response: any) => void
+) {
+  try {
+    console.log("🔵 Background: Storing email data...", emailData);
+
+    // Get user session from storage
+    const result = await chrome.storage.local.get(["supabase_session"]);
+    const session = result.supabase_session;
+
+    if (!session || !session.user) {
+      sendResponse({
+        success: false,
+        error: "No authenticated user found",
+      });
+      return;
+    }
+
+    // Set the session on supabase client
+    await supabase.auth.setSession(session);
+
+    // Insert email data
+    const { data, error } = await supabase
+      .from("emails")
+      .insert({
+        tracking_id: emailData.trackingId,
+        recipients: emailData.recipients,
+        subject: emailData.subject,
+        user_id: session.user.id,
+        sender_email: session.user.email,
+      })
+      .select();
+
+    if (error) {
+      console.error("🔴 Database error:", error);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    console.log("🟢 Email stored successfully:", data);
+    sendResponse({
+      success: true,
+      data: data,
+    });
+  } catch (error) {
+    console.error("🔴 Error storing email:", error);
+    sendResponse({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+}
+
+async function handleGetUserSession(sendResponse: (response: any) => void) {
+  try {
+    const result = await chrome.storage.local.get(["supabase_session"]);
+    const session = result.supabase_session;
+
+    if (session && session.user) {
+      sendResponse({
+        success: true,
+        user: session.user,
+      });
+    } else {
+      sendResponse({
+        success: false,
+        error: "No session found",
+      });
+    }
+  } catch (error) {
+    sendResponse({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+}
 
 async function handleGoogleAuth(sendResponse: (response: any) => void) {
   try {
