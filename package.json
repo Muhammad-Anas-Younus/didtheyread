@@ -2,6 +2,10 @@
   "name": "didtheyread",
   "packageManager": "yarn@4.9.4",
   "private": true,
+  "scripts": {
+    "extension:dev": "cd apps/chrome-extension && yarn run dev",
+    "dashboard:dev": "cd apps/dashboard && yarn run dev"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

@@ -1,6 +1,17 @@
+import { headers } from "next/headers";
 import Image from "next/image";
 
-export default function Home() {
+export default async function Home() {
+  const getUserInfo = async () => {
+    const res = await fetch("http://localhost:3000/api/auth/whoami", {
+      headers: await headers(),
+    });
+    const data = await res.json();
+    return data;
+  };
+
+  const user = await getUserInfo();
+
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">

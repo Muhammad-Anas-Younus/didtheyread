@@ -15,6 +15,7 @@ export default defineManifest({
     default_popup: "src/popup/index.html",
   },
   permissions: ["sidePanel", "contentSettings", "scripting", "background"],
+  host_permissions: ["http://localhost:3000/*"],
   content_scripts: [
     {
       js: ["src/content/main.tsx"],
