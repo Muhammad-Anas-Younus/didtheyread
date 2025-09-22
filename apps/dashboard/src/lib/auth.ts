@@ -8,6 +8,6 @@ export async function verifyJwtToken(token: string) {
     );
     return verified.payload;
   } catch (error) {
-    throw new Error("Your token is expired");
+    throw new Error("Invalid or expired token");
   }
 }

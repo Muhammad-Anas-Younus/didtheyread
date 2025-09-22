@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import { API_BASE_URL } from "@/config/constants";
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -7,7 +8,7 @@ export default function App() {
 
   const getUserInfo = async () => {
     setLoading(true);
-    const res = await fetch("http://localhost:3000/api/auth/whoami", {
+    const res = await fetch(`${API_BASE_URL}/api/auth/whoami`, {
       credentials: "include",
     });
     const data = await res.json();
@@ -29,7 +30,7 @@ export default function App() {
       ) : user ? (
         <div>User: {user?.email}</div>
       ) : (
-        <a target="_blank" href="http://localhost:3000/login">
+        <a target="_blank" href={`${API_BASE_URL}/login`}>
           <button>Login</button>
         </a>
       )}

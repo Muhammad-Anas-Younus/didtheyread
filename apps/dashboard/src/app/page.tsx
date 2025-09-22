@@ -1,9 +1,10 @@
+import { API_BASE_URL } from "@/config/constants";
 import { headers } from "next/headers";
 import Image from "next/image";
 
 export default async function Home() {
   const getUserInfo = async () => {
-    const res = await fetch("http://localhost:3000/api/auth/whoami", {
+    const res = await fetch(`${API_BASE_URL}/api/auth/whoami`, {
       headers: await headers(),
     });
     const data = await res.json();
